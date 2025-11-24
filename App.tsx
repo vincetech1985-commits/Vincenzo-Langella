@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Heart, Activity, Download, Printer, Sparkles, AlertCircle, Target, ExternalLink, User } from 'lucide-react';
+import { Heart, Activity, Download, Printer, Sparkles, AlertCircle, Target, ExternalLink, User, PlayCircle } from 'lucide-react';
 import { UserInput, HeartRateZone, Gender } from './types';
 import { ZoneChart } from './components/ZoneChart';
 import { ZoneTable } from './components/ZoneTable';
 import { getFitnessAdvice } from './services/geminiService';
+import { WorkoutMode } from './components/WorkoutMode';
 
 const INITIAL_ZONES: HeartRateZone[] = [];
 
@@ -13,6 +14,7 @@ function App() {
   const [zones, setZones] = useState<HeartRateZone[]>([]);
   const [aiAdvice, setAiAdvice] = useState<string>('');
   const [loadingAi, setLoadingAi] = useState<boolean>(false);
+  const [isWorkoutMode, setIsWorkoutMode] = useState<boolean>(false);
 
   // Core Calculation Logic
   const calculateZones = useCallback(() => {
@@ -206,8 +208,19 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
+  const getTargetZone = () => zones.find(z => z.isTarget) || zones[0];
+
   return (
     <div className="min-h-screen pb-12">
+      {/* Workout Mode Overlay */}
+      {isWorkoutMode && zones.length > 0 && (
+        <WorkoutMode 
+          targetZone={getTargetZone()} 
+          maxHr={maxHr} 
+          onClose={() => setIsWorkoutMode(false)} 
+        />
+      )}
+
       {/* Header / Branding */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 print:static print:border-none">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -317,37 +330,47 @@ function App() {
         {/* Content Area */}
         <div className="print:block">
           
-          {/* AI Advice Section - Hidden if empty */}
-          <div className="mb-8 no-print">
+          {/* Action Buttons: AI Advice + Workout Mode */}
+          <div className="mb-8 flex flex-col sm:flex-row gap-4 no-print">
             <button
               onClick={fetchAiAdvice}
               disabled={loadingAi || input.age === ''}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl font-medium shadow-lg shadow-indigo-200 transition-all disabled:opacity-70 disabled:cursor-not-allowed group"
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-white border border-indigo-100 hover:bg-indigo-50 text-indigo-700 rounded-xl font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed group"
             >
               {loadingAi ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
               ) : (
-                <Sparkles className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <Sparkles className="w-5 h-5 text-indigo-500" />
               )}
-              <span>Ottieni consigli Smart Coach</span>
+              <span>Consigli Smart Coach</span>
             </button>
 
-            {aiAdvice && (
-              <div className="mt-6 bg-gradient-to-br from-white to-indigo-50/50 p-6 rounded-2xl border border-indigo-100 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className="bg-white p-2 rounded-lg shadow-sm">
-                    <Sparkles className="w-5 h-5 text-indigo-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-indigo-900 mb-2">Il consiglio del Coach</h3>
-                    <div className="prose prose-indigo text-slate-700 text-sm leading-relaxed whitespace-pre-line">
-                      {aiAdvice}
-                    </div>
+            <button
+              onClick={() => setIsWorkoutMode(true)}
+              disabled={input.age === ''}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl font-medium shadow-lg shadow-indigo-200 transition-all active:scale-[0.98]"
+            >
+              <PlayCircle className="w-5 h-5" />
+              <span>Avvia Allenamento Guidato</span>
+            </button>
+          </div>
+
+          {/* AI Advice Display */}
+          {aiAdvice && (
+            <div className="mb-8 mt-2 bg-gradient-to-br from-white to-indigo-50/50 p-6 rounded-2xl border border-indigo-100 shadow-sm no-print animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-start gap-3">
+                <div className="bg-white p-2 rounded-lg shadow-sm">
+                  <Sparkles className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-indigo-900 mb-2">Il consiglio del Coach</h3>
+                  <div className="prose prose-indigo text-slate-700 text-sm leading-relaxed whitespace-pre-line">
+                    {aiAdvice}
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Zones Chart */}
           <ZoneChart zones={zones} maxHr={maxHr} />
@@ -400,7 +423,7 @@ function App() {
       </main>
 
       {/* Floating Action Button for Mobile Print/Download - Visible only on small screens */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-3 sm:hidden no-print z-50">
+      <div className="fixed bottom-6 right-6 flex flex-col gap-3 sm:hidden no-print z-40">
         <button 
           onClick={handlePrint}
           className="bg-white p-3 rounded-full shadow-lg border border-slate-100 text-slate-600 hover:text-indigo-600"
